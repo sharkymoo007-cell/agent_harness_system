@@ -1,14 +1,15 @@
 import os
+import shutil
 from datetime import datetime
 from src.core.main_agent import create_initial_plan, review_and_replan
 from src.core.sub_agent import WORKER_MAP
 from src.logger import AgentLogger
 from src.memory.vector_store import memory_store
 from src.memory.context_governor import context_governor
+from src.core.hitl_sys import trigger_HITL
 
-TEMPORARY_MEMORY_PATH = "./temporary_db/temp_mem.txt"
+def run_multi_agent_pipeline(user_input: str, config: dict) -> str:
 
-def run_multi_agent_pipeline(user_input: str, config: dict, previous_agent_raw: str = "") -> str:
     # 1. main agent generate initial roadmap
     AgentLogger.log_header("MAIN: CREATING EXECUTION PLAN")
     plan = create_initial_plan(user_input)   # initialize Plan
@@ -25,10 +26,6 @@ def run_multi_agent_pipeline(user_input: str, config: dict, previous_agent_raw: 
         current_subtask = plan.subtasks[plan.current_task_index]
         agent_name = current_subtask.assigned_Agent
 
-        if step_count-1:
-            with open(TEMPORARY_MEMORY_PATH, "r", encoding="utf-8") as f:
-                previous_agent_raw = f.read()
-
         AgentLogger.log_header(f"STEP {step_count}: DISPATCHING TO [{agent_name.upper()}]")
         print(f"\033[33m[TASK EXECUTION]\033[0m: {current_subtask.task_description}")
 
@@ -39,13 +36,45 @@ def run_multi_agent_pipeline(user_input: str, config: dict, previous_agent_raw: 
         else:
             # Execute sub_agent loop
             response = worker_agent.invoke(
-                {"messages": [("user", current_subtask.task_description+"\n---\nLast Agent's output\n---\n"+previous_agent_raw)]},
+                {"messages": [("user", current_subtask.task_description+"\nThe ORIGINAL OUTPUT of previous agents in this project are stored in the './temporary_db' directory, you may browse if needed.\n")]},
                 config=config
             )
+
+            current_status = worker_agent.get_state(config)
+
+            while current_status.next and "tools" in current_status.next:
+                last_msg = current_status.values["messages"][-1]
+
+                for call in last_msg.tool_calls:
+                    tool_name = call["name"]
+                    tool_args = call["args"]
+                    id = call["id"]
+                    
+                    approved = trigger_HITL(
+                        tool_name=tool_name,
+                        agent_name=current_subtask.assigned_Agent,
+                        task_description=tool_args
+                    )
+                    
+                    if not approved:
+                        denial_message = {
+                            "role": "tool",
+                            "tool_call_id": id,
+                            "name": tool_name,
+                            "content": "User Rejected Operation: Permission denied by human supervisor."
+                        }
+                        worker_agent.update_state(
+                            {"messages": [denial_message]},
+                            config
+                        )
+                        print("\033[31m[REJECTED] Blocking Tool execution and notifying agent...\033[0m")
+                        break                    
+
+                response = worker_agent.invoke(None,config=config)
+                current_status = worker_agent.get_state(config)
+
             last_output = response["messages"][-1].content
-            if os.path.exists(TEMPORARY_MEMORY_PATH):
-                os.remove(TEMPORARY_MEMORY_PATH)
-            with open(TEMPORARY_MEMORY_PATH, "w", encoding="utf-8") as f:
+            with open(f"./temporary_db/Task_{plan.current_task_index}_Output.txt", "w", encoding="utf-8") as f:
                 f.write(last_output)
 
             # Governance: Persist raw result to Long-Term Semantic VectorDB
@@ -68,11 +97,11 @@ def run_multi_agent_pipeline(user_input: str, config: dict, previous_agent_raw: 
         plan = review_and_replan(plan, compressed_result)
         
         if plan.is_completed:
-            if os.path.exists(TEMPORARY_MEMORY_PATH):
-                os.remove(TEMPORARY_MEMORY_PATH)
             break
 
     if plan.final_summary:
+        shutil.rmtree('./temporary_db', ignore_errors=True) 
+        os.makedirs('./temporary_db', exist_ok=True)
         return plan.final_summary
     else:
         return "Task execution reached safety threshold without completion."

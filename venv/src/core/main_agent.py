@@ -29,8 +29,8 @@ def invoke_llm_with_hard_defense(messages: list, max_retries: int = 3) -> Execut
             
         except Exception as e:
             # Layer 3: Self-correction retry loop
-            error_msg = f"Your last output failed JSON validation. Error: {str(e)}. Please correct your response and strictly follow the JSON Schema."
-            print(f"\033[33m[HARD DEFENSE TRIGGERED]\033[0m Validation failed (Attempt {attempt + 1}/{max_retries}). Feeding error({str(e)}) trace back to LLM...")
+            error_msg = f"Your last output failed JSON validation. #Error: {str(e)}. Please correct your response and strictly follow the JSON Schema."
+            print(f"\033[33m[HARD DEFENSE TRIGGERED]\033[0m Validation failed (Attempt {attempt + 1}/{max_retries}). Feeding error trace back to LLM...")
             
             # Append failed response and error feedback to prompt context for self-correction
             current_messages.append(HumanMessage(content=raw_text))

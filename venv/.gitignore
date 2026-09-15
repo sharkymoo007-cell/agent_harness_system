@@ -20,6 +20,7 @@ __pycache__/
 
 # AI gen .md files
 *.md
+agent_creations/
 
 # memory database
 chroma_db/

@@ -51,8 +51,8 @@ def system_clock() -> str:
         return f"system_clock FAILED: {str(e)}"
 
 @tool
-def create_directory(new_directory: str = "./new_directory") -> str:
-    """create new directory under specified path"""
+def create_directory(new_directory: str = "./agent_creations/new_directory") -> str:
+    """create new directory under the 'agent_creations' directory"""
     try:
         os.mkdir(new_directory)
         return f"New directory created at: {new_directory}"
