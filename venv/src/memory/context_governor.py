@@ -25,5 +25,21 @@ class ContextGovernor:
             # Fallback truncation if LLM summarization fails
             return raw_output[:max_length] + "\n...[TRUNCATED BY CONTEXT GOVERNOR]"
 
+    @staticmethod
+    def conversation_summary(full_conversation_output: str) -> str:
+        """Summarizes the conversation between the user and the agent as of the current session before exiting"""
+
+        print(f"\n\033[33m[ENDING SESSION...]\033[0m Summarizing and saving to memories...")
+        messages = [
+            SystemMessage(content="You condense the conversation of the user and the agent by summarizing the major topic and actions/projects done during the process"),
+            HumanMessage(content=full_conversation_output)
+        ]
+
+        try:
+            summary = llm_flash.invoke(messages).content
+            return f"[SUMMARY OF THIS SESSION]: {summary}"
+        except Exception as e:
+            return f"[ERROR]: This session was not recorded due to {str(e)}"
+        
 # Global singleton instance
 context_governor = ContextGovernor()

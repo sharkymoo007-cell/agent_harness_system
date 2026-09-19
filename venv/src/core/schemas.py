@@ -5,7 +5,7 @@ class SubTask(BaseModel):
     """The definiton of the individual task given by the main agent"""
 
     task_id: int = Field(description="the id of each subtask, such as: 1, 2, 3")
-    assigned_Agent: Literal["search_agent", "coder_agent", "file_agent"] = Field(
+    assigned_Agent: Literal["search_agent", "coder_agent", "file_agent", "memory_agent"] = Field(
         description="The name of the sub-agent responsible for this subtask"
     )
     task_description: str = Field(description="Command and description of the subtask given to the sub-agent and left right context")

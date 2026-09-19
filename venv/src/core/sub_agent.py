@@ -1,7 +1,7 @@
 from langchain.agents import create_agent
 from src.core.llm import llm_flash, llm_pro
 from src.tools.basic_tools import calculate, write_file, read_file, list_dir, system_clock
-from src.tools.memory_tools import search_long_term_memory
+from src.tools.memory_tools import search_long_term_memory, save_memory
 from src.tools.search_tools import web_search
 from langgraph.checkpoint.memory import MemorySaver
 
@@ -11,7 +11,7 @@ memory = MemorySaver()
 # 1. Search Specialist Agent
 search_agent = create_agent(
     llm_flash,
-    [web_search, search_long_term_memory] + public_tools,
+    [web_search] + public_tools,
     system_prompt="""
     You are a dedicated 'Information Search Specialist'.
     Your role is to perform accurate and up-to-date information retrieval based on given instructions.
@@ -49,8 +49,22 @@ file_agent = create_agent(
     interrupt_before=["tools"]
 )
 
+memory_agent = create_agent(
+    llm_flash,
+    [search_long_term_memory, save_memory],
+    system_prompt="""You are a dedicated 'Long-Term Memory Specialist'.
+    Your role is to manage persistent memory across sessions, including recalling user preferences, retrieving past project details, and saving critical facts.
+    Ensure memory records are accurate, concise, and structured logically for future retrieval.
+
+    IMPORTANT: all memory entries MUST be saved or retrieved using 'search_long_term_memory' and 'save_memory'
+    """,
+    checkpointer=memory,
+    interrupt_before=["tools"]
+)
+
 WORKER_MAP = {
     "search_agent": search_agent,
     "coder_agent": coder_agent,
-    "file_agent": file_agent
+    "file_agent": file_agent,
+    "memory_agent": memory_agent
 }

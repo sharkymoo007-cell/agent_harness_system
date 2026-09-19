@@ -64,8 +64,9 @@ def run_multi_agent_pipeline(user_input: str, config: dict) -> str:
                             "content": "User Rejected Operation: Permission denied by human supervisor."
                         }
                         worker_agent.update_state(
+                            config,
                             {"messages": [denial_message]},
-                            config
+                            as_node="tools"
                         )
                         print("\033[31m[REJECTED] Blocking Tool execution and notifying agent...\033[0m")
                         break                    
