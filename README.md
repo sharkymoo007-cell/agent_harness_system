@@ -1,4 +1,4 @@
-# DeepSeek Agent System
+# Model Agent Harness Architecture
 
 A modular, stateful AI Agent built on Windows using **DeepSeek LLM**, **LangGraph**, and **LangChain**. 
 
